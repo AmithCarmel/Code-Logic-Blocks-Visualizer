@@ -150,6 +150,42 @@ function extractJSON(raw, expectArray = false) {
   if (start === -1 || end === -1) throw new Error("No JSON object found in response");
   return s.slice(start, end + 1);
 }
+function downloadJPG() {
+  const svg = document.getElementById("flow");
+  const serialized = new XMLSerializer().serializeToString(svg);
+
+  // Add xml declaration and fix namespace
+  const svgData = serialized.replace(
+    '<svg',
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+  );
+
+  const svgDataUrl = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgData);
+
+  const cvs = document.createElement("canvas");
+  cvs.width  = svg.clientWidth  * 2;   // 2x for sharpness
+  cvs.height = svg.clientHeight * 2;
+  const ctx = cvs.getContext("2d");
+
+  const img = new Image();
+  img.onload = () => {
+    ctx.fillStyle = "#070b0f";
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
+    ctx.scale(2, 2);
+    ctx.drawImage(img, 0, 0);
+
+    const a = document.createElement("a");
+    const title = document.getElementById("info-title").textContent || "flowchart";
+    a.href     = cvs.toDataURL("image/jpeg", 0.95);
+    a.download = title.replace(/\s+/g, "-").toLowerCase() + ".jpg";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+  img.onerror = () => alert("Export failed — try a different browser (Chrome works best)");
+  img.src = svgDataUrl;
+}
+
 
 function validateGraph(parsed) {
   if (!parsed?.nodes?.length) throw new Error("Model returned no nodes");
