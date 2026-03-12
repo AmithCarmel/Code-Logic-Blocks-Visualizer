@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Code Logic Blocks Visualizer</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: #050a0e; }
+    body { font-family: 'JetBrains Mono','Fira Code',monospace; color: #8aabbc; display:flex; flex-direction:column; height:100vh; }
+
+    /* ── API Key Modal ── */
+    #key-modal {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85);
+      align-items:center; justify-content:center; z-index:999; padding:16px;
+    }
+    #key-modal.show { display:flex; }
+    #key-box {
+      background:#0a1520; border:1px solid #1e4a6e; border-radius:14px;
+      padding:36px; max-width:460px; width:100%;
+    }
+    #key-box h2 { font-size:15px; color:#00ff88; margin-bottom:10px; }
+    #key-box p  { font-size:11px; color:#4a7a8a; line-height:1.9; margin-bottom:20px; }
+    #key-box a  { color:#00ff88; }
+    .key-input-wrap { position:relative; margin-bottom:14px; }
+    #key-input {
+      width:100%; background:#060b10; border:1px solid #1e3a4a; border-radius:8px;
+      padding:10px 44px 10px 12px; color:#7dd3fc; font-size:12px;
+      font-family:inherit; outline:none;
+    }
+    #key-input::placeholder { color:#1a3a4a; }
+    #key-toggle { position:absolute; right:10px; top:50%; transform:translateY(-50%);
+      background:none; border:none; color:#2a5a6a; font-size:15px; cursor:pointer; }
+    #key-warn { font-size:10px; color:#ff6666; margin-bottom:10px; display:none; }
+    #key-save {
+      width:100%; padding:11px 0; border:none; border-radius:8px;
+      font-weight:700; font-size:13px; letter-spacing:1px; font-family:inherit;
+      cursor:pointer; transition:all .2s;
+    }
+    #key-save.ready  { background:#00ff88; color:#021a09; box-shadow:0 0 18px #00ff8855; }
+    #key-save.notready { background:#0a2015; color:#1a5a2a; cursor:not-allowed; }
+
+    /* ── Topbar ── */
+    #topbar {
+      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+      padding:10px 18px; background:#070c11; border-bottom:1px solid #0d2030; flex-shrink:0;
+    }
+    .logo { display:flex; align-items:center; gap:8px; }
+    .logo-text { font-size:14px; font-weight:700; color:#00ff88; letter-spacing:1px; }
+    .logo-badge { font-size:9px; color:#1e5a3a; background:#0a1f15; padding:2px 7px; border-radius:4px; border:1px solid #0d3020; }
+    .spacer { flex:1; }
+    .ex-btn { font-size:10px; padding:4px 10px; background:#0a1520; border:1px solid #1a3040; border-radius:5px; color:#4a8a9a; cursor:pointer; font-family:inherit; letter-spacing:.5px; transition:all .15s; }
+    .ex-btn:hover { background:#0d1e30; color:#7dd3fc; }
+    #key-chip { font-size:9px; padding:4px 10px; background:#0a150a; border:1px solid #1a401a; border-radius:5px; color:#3a8a3a; cursor:pointer; font-family:inherit; }
+    #viz-btn {
+      padding:8px 22px; background:#00ff88; color:#021a09; border:none; border-radius:7px;
+      font-weight:700; font-size:12px; letter-spacing:1px; font-family:inherit;
+      cursor:pointer; transition:all .2s; box-shadow:0 0 22px #00ff8845;
+    }
+    #viz-btn:disabled { background:#0a2015; color:#0a5a2a; cursor:not-allowed; box-shadow:none; }
+
+    /* ── Main ── */
+    #main { flex:1; display:flex; overflow:hidden; }
+
+    /* ── Editor panel ── */
+    #editor-panel { width:380px; flex-shrink:0; display:flex; flex-direction:column; border-right:1px solid #0d2030; }
+    #editor-header { padding:7px 14px; font-size:10px; color:#2a5a6a; background:#060b10; border-bottom:1px solid #0d2030; display:flex; gap:10px; align-items:center; }
+    #line-count { margin-left:auto; color:#1a4a3a; font-size:9px; }
+    #code-input {
+      flex:1; background:#060b10; color:#7dd3fc; border:none; outline:none;
+      padding:14px; font-size:12px; line-height:1.75; resize:none;
+      font-family:inherit; caret-color:#00ff88; overflow-y:auto;
+    }
+    #code-input::placeholder { color:#1a3a4a; }
+    #error-bar { display:none; padding:10px 14px; background:#180808; border-top:1px solid #4a1010; font-size:11px; color:#fca5a5; line-height:1.7; }
+    #error-bar.show { display:block; }
+
+    /* ── Graph panel ── */
+    #graph-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+
+    /* Empty state */
+    #empty-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#070b0f; gap:22px; padding:40px; }
+    .empty-icon  { font-size:46px; opacity:.18; }
+    .empty-msg   { color:#1e4a5a; font-size:13px; text-align:center; line-height:2.2; }
+    .empty-msg span { color:#00ff88; }
+    .legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-width:360px; width:100%; }
+    .legend-item { display:flex; align-items:center; gap:8px; padding:6px 12px; border-radius:6px; }
+    .legend-swatch { width:10px; height:10px; flex-shrink:0; }
+    .legend-label  { font-size:10px; opacity:.75; }
+    .empty-tip { font-size:10px; color:#1a3a4a; text-align:center; line-height:2; }
+
+    /* Loading state */
+    #loading-state { display:none; flex:1; flex-direction:column; align-items:center; justify-content:center; background:#070b0f; gap:16px; }
+    #loading-state.show { display:flex; }
+    .spin       { font-size:38px; animation:spin 1.4s linear infinite; }
+    .load-title { color:#00ff88; font-size:13px; letter-spacing:2px; margin-bottom:6px; }
+    .pass-step  { font-size:11px; color:#1a4a3a; display:flex; align-items:center; gap:12px; padding:5px 0; transition:color .4s; }
+    .pass-step.active { color:#7dd3fc; }
+    .pass-step.done   { color:#00ff88; }
+    .pass-num   { width:22px; height:22px; border-radius:50%; border:1px solid currentColor; display:flex; align-items:center; justify-content:center; font-size:10px; flex-shrink:0; }
+    .pass-note  { font-size:10px; color:#1a3a2a; margin-top:8px; }
+
+    /* Canvas */
+    #canvas-wrap {
+      display:none; flex:1; position:relative; overflow:hidden;
+      background:#070b0f;
+      background-image:radial-gradient(circle, #162030 1px, transparent 1px);
+      background-size:24px 24px; cursor:grab;
+    }
+    #canvas-wrap.show { display:block; }
+    #canvas-wrap:active { cursor:grabbing; }
+    svg#flow { width:100%; height:100%; }
+    #zoom-controls { position:absolute; bottom:16px; right:16px; display:flex; flex-direction:column; gap:6px; }
+    .zoom-btn { width:34px; height:34px; background:#0d1620; border:1px solid #1e3a4a; border-radius:8px; color:#7dd3fc; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+    #info-pill { position:absolute; top:12px; left:12px; background:rgba(13,22,32,.88); border:1px solid #1e3a4a; border-radius:8px; padding:6px 12px; font-size:11px; color:#4a8a9a; }
+    #info-pill span { margin-left:12px; color:#00ff88; }
+
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:#060b10; }
+    ::-webkit-scrollbar-thumb { background:#1a3a4a; border-radius:3px; }
+    button:hover:not(:disabled) { filter:brightness(1.12); }
+  </style>
+</head>
+<body>
+
+<!-- ── API Key Modal ── -->
+<div id="key-modal">
+  <div id="key-box">
+    <div style="font-size:28px;margin-bottom:10px">🔑</div>
+    <h2>Groq API Key Required</h2>
+    <p>
+      This app runs entirely in your browser and calls the <b style="color:#7dd3fc">Groq API</b> (free, no credit card).<br/>
+      Your key is saved in <b style="color:#7dd3fc">localStorage</b> on your device only — never sent anywhere except <code style="color:#7dd3fc">api.groq.com</code>.<br/><br/>
+      Get a free key at <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a>
+    </p>
+    <div class="key-input-wrap">
+      <input id="key-input" type="password" placeholder="gsk_..." oninput="onKeyInput()" onkeydown="if(event.key==='Enter')saveKey()"/>
+      <button id="key-toggle" onclick="toggleKeyVis()">👁</button>
+    </div>
+    <div id="key-warn">⚠ Key should start with "gsk_"</div>
+    <button id="key-save" class="notready" onclick="saveKey()">SAVE KEY &amp; CONTINUE →</button>
+  </div>
+</div>
+
+<!-- ── Topbar ── -->
+<div id="topbar">
+  <div class="logo">
+    <span style="font-size:18px">⬡</span>
+    <span class="logo-text">CODE LOGIC BLOCKS</span>
+    <span class="logo-badge">3-PASS AI · FREE</span>
+  </div>
+  <div class="spacer"></div>
+  <span style="font-size:10px;color:#2a4a5a">EXAMPLES:</span>
+  <button class="ex-btn" onclick="loadExample('python')">python</button>
+  <button class="ex-btn" onclick="loadExample('javascript')">javascript</button>
+  <button class="ex-btn" onclick="loadExample('mixed')">mixed</button>
+  <button id="key-chip" onclick="clearKey()" title="Change API key">🔑 KEY ×</button>
+  <button id="viz-btn" onclick="analyze()">▶ VISUALIZE</button>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+
+  <!-- Editor -->
+  <div id="editor-panel">
+    <div id="editor-header">
+      <span>PASTE CODE</span>
+      <span style="color:#1a3a4a">·</span>
+      <span id="lang-tag" style="color:#2a6a3a">auto-detect</span>
+      <span id="line-count">0 lines</span>
+    </div>
+    <textarea id="code-input"
+      placeholder="// Paste any code here&#10;// Python, JS, TS, Go, Rust, Java, C#, C++...&#10;// Ctrl+Enter to visualize"
+      oninput="onCodeChange()"></textarea>
+    <div id="error-bar"></div>
+  </div>
+
+  <!-- Graph -->
+  <div id="graph-panel">
+
+    <div id="empty-state">
+      <div class="empty-icon">⬡</div>
+      <div class="empty-msg">
+        Paste any code in the editor<br/>
+        <span>Click ▶ VISUALIZE</span> to generate logic blocks
+      </div>
+      <div class="legend-grid" id="legend"></div>
+      <div class="empty-tip">
+        Scroll to zoom · Drag to pan<br/>
+        Python · JS · TS · Go · Rust · C++ · Java · C# · PHP · Ruby…
+      </div>
+    </div>
+
+    <div id="loading-state">
+      <div class="spin">⬡</div>
+      <div class="load-title">ANALYZING — 3-PASS PIPELINE</div>
+      <div class="pass-step" id="pass1"><span class="pass-num" id="dot1">1</span><span><b style="color:#4a8a9a">Pass 1</b> &nbsp;Structural analysis — defs vs calls</span></div>
+      <div class="pass-step" id="pass2"><span class="pass-num" id="dot2">2</span><span><b style="color:#4a8a9a">Pass 2</b> &nbsp;Runtime execution trace</span></div>
+      <div class="pass-step" id="pass3"><span class="pass-num" id="dot3">3</span><span><b style="color:#4a8a9a">Pass 3</b> &nbsp;Flowchart layout &amp; positioning</span></div>
+      <div class="pass-note">~15–25s for large files</div>
+    </div>
+
+    <div id="canvas-wrap">
+      <svg id="flow">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
+            <polygon points="0 0,8 3.5,0 7" fill="#2a6a7a"/>
+          </marker>
+        </defs>
+        <g id="graph-root"></g>
+      </svg>
+      <div id="zoom-controls">
+        <button class="zoom-btn" onclick="zoom(0.2)">＋</button>
+        <button class="zoom-btn" onclick="zoom(-0.2)">－</button>
+        <button class="zoom-btn" onclick="resetView()">⟳</button>
+      </div>
+      <div id="info-pill">
+        <span id="info-title">—</span> ·
+        <span id="info-nodes">0</span> blocks ·
+        <span id="info-edges">0</span> edges
+        <span id="info-lang"></span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════ */
+const GROQ_URL   = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+const BLOCK_CFG = {
+  start:     { bg:"#00ff88", fg:"#051a0e", border:"#00ff88", shape:"oval"    },
+  end:       { bg:"#ff4466", fg:"#ffffff", border:"#ff4466", shape:"oval"    },
+  process:   { bg:"#0d1f2d", fg:"#7dd3fc", border:"#1e4a6e", shape:"rect"    },
+  condition: { bg:"#1a0d2e", fg:"#c084fc", border:"#6b21a8", shape:"diamond" },
+  loop:      { bg:"#1a1a0d", fg:"#fde68a", border:"#78680a", shape:"hex"     },
+  function:  { bg:"#0d1a0d", fg:"#86efac", border:"#166534", shape:"func"    },
+  return:    { bg:"#1a0d0d", fg:"#fca5a5", border:"#7f1d1d", shape:"rect"    },
+  input:     { bg:"#0d0d1a", fg:"#a5b4fc", border:"#3730a3", shape:"para"    },
+};
+
+const EXAMPLES = {
+  python: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr`,
+  javascript: `async function fetchUser(id) {
+  try {
+    const res = await fetch(\`/api/users/\${id}\`);
+    if (!res.ok) throw new Error("Not found");
+    const user = await res.json();
+    if (!user.active) return null;
+    return user;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}`,
+  mixed: `function processOrder(order) {
+  if (!order || !order.items.length) return { error: "Empty order" };
+  let total = 0;
+  for (const item of order.items) {
+    if (item.qty <= 0) continue;
+    total += item.price * item.qty;
+  }
+  if (total > 1000) total *= 0.9;
+  const tax = total * 0.08;
+  return { total: total + tax, items: order.items.length };
+}`
+};
+
+/* ═══════════════════════════════════════════════════════
+   3-PASS AI PROMPTS
+═══════════════════════════════════════════════════════ */
+const PASS1_SYSTEM = `You are an expert code analyst. Analyze code and return ONLY a raw JSON object — no markdown, no explanation.
+
+{
+  "language": "Python|JavaScript|Go|etc",
+  "title": "short descriptive title",
+  "entryPoint": "where execution actually starts (e.g. 'if __name__ == main block')",
+  "definitions": [
+    { "name": "fn/class name", "kind": "function|class|method", "purpose": "one sentence", "internalLogic": ["key step 1", "key step 2"] }
+  ],
+  "executionFlow": [
+    { "step": 1, "action": "exact description", "kind": "setup|call|condition|loop|assignment|io|error_handling", "detail": "variable names, condition text, loop range", "calls": ["fn names"], "loopBody": ["steps inside loop"], "branches": { "yes": "if true", "no": "if false" } }
+  ]
+}
+
+CRITICAL RULES:
+1. definitions = ONLY code that defines things (def, class, function declarations)
+2. executionFlow = ONLY what RUNS at runtime in correct ORDER
+3. Python: executionFlow = what runs inside "if __name__ == '__main__'" ONLY
+4. Be SPECIFIC: use real variable names, real conditions from the code
+5. Return ONLY the raw JSON object`;
+
+const PASS2_SYSTEM = `You are a runtime execution tracer. Convert structural analysis into a precise execution trace. Return ONLY a raw JSON array — no markdown.
+
+[
+  { "id": "t1", "description": "short description ≤28 chars", "type": "start|end|setup|call|condition|loop_start|loop_body|loop_end|assignment|io|return", "conditionText": "condition if type=condition", "loopText": "loop expression if type=loop_start", "yes_child": "id", "no_child": "id", "loop_back_to": "loop_start id", "after_loop": "id after loop" }
+]
+
+RULES:
+1. Always start: {id:"t1",type:"start",description:"Start"}
+2. Always end: {id:"tN",type:"end",description:"End"}
+3. NEVER include function/class definitions — only their CALLS
+4. Loops: loop_start node → loop_body nodes → loop_start (via loop_back_to) → after_loop
+5. Conditions: condition node with yes_child and no_child that merge after
+6. Labels ≤28 chars, use real names from code
+7. Return ONLY the raw JSON array`;
+
+const PASS3_SYSTEM = `You are a flowchart layout engine. Convert an execution trace into positioned flowchart JSON. Return ONLY the raw JSON object — no markdown.
+
+{
+  "title": "short title",
+  "language": "language",
+  "nodes": [{"id":"n1","type":"start","label":"Start","x":400,"y":50}],
+  "edges":  [{"from":"n1","to":"n2","label":""}]
+}
+
+NODE TYPES: start | end | process | condition | loop | function | return | input
+
+LAYOUT RULES:
+- Canvas x: 100–700, y: 50–2200, main flow at x=400, spacing 120px
+- Condition: x=400 → YES branch x=230 y+120, NO branch x=570 y+120, merge back x=400
+- Loop: x=400, body nodes below, loop-back edge labeled "loop back"
+- function calls → type "function", setup/assignment → type "process", print/read → type "input"
+- y must increase monotonically on main path — NO overlapping nodes
+- Labels ≤26 chars
+
+EDGES: "yes"/"no" for conditions, "loop back" for loops, "" otherwise
+Return ONLY the raw JSON object`;
+
+/* ═══════════════════════════════════════════════════════
+   API KEY MANAGEMENT
+═══════════════════════════════════════════════════════ */
+let apiKey = localStorage.getItem("lb_groq_key") || "";
+
+function initKeyModal() {
+  if (!apiKey) document.getElementById("key-modal").classList.add("show");
+}
+
+function onKeyInput() {
+  const v = document.getElementById("key-input").value.trim();
+  const valid = v.startsWith("gsk_") && v.length > 10;
+  document.getElementById("key-warn").style.display = (v.length > 5 && !valid) ? "block" : "none";
+  const btn = document.getElementById("key-save");
+  btn.className = valid ? "ready" : "notready";
+}
+
+function saveKey() {
+  const v = document.getElementById("key-input").value.trim();
+  if (!v.startsWith("gsk_")) return;
+  apiKey = v;
+  localStorage.setItem("lb_groq_key", v);
+  document.getElementById("key-modal").classList.remove("show");
+}
+
+function clearKey() {
+  localStorage.removeItem("lb_groq_key");
+  apiKey = "";
+  document.getElementById("key-input").value = "";
+  document.getElementById("key-modal").classList.add("show");
+}
+
+function toggleKeyVis() {
+  const inp = document.getElementById("key-input");
+  inp.type = inp.type === "password" ? "text" : "password";
+}
+
+/* ═══════════════════════════════════════════════════════
+   GROQ API CALL
+═══════════════════════════════════════════════════════ */
+async function callGroq(systemPrompt, userContent, maxTokens = 2000, attempt = 1) {
+  const res = await fetch(GROQ_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model:       GROQ_MODEL,
+      temperature: 0.05,
+      max_tokens:  maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user",   content: userContent  }
+      ]
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err?.error?.message || `HTTP ${res.status}`;
+    if (res.status === 401) { clearKey(); throw new Error("Invalid API key — please re-enter your Groq key"); }
+    if (res.status === 429) {
+      if (attempt === 1) {
+        setPassNote("Rate limited — waiting 15s…");
+        await new Promise(r => setTimeout(r, 15000));
+        return callGroq(systemPrompt, userContent, maxTokens, 2);
+      }
+      throw new Error("Groq rate limit — wait 30 seconds and try again");
+    }
+    throw new Error(`Groq API error: ${msg}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || "";
+}
+
+/* ═══════════════════════════════════════════════════════
+   JSON EXTRACTION & VALIDATION
+═══════════════════════════════════════════════════════ */
+function extractJSON(raw, isArray = false) {
+  let s = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  if (isArray) {
+    const a = s.indexOf("["), b = s.lastIndexOf("]");
+    if (a === -1 || b === -1) throw new Error("No JSON array in response");
+    return s.slice(a, b + 1);
+  }
+  const a = s.indexOf("{"), b = s.lastIndexOf("}");
+  if (a === -1 || b === -1) throw new Error("No JSON object in response");
+  return s.slice(a, b + 1);
+}
+
+function validateGraph(g) {
+  if (!g?.nodes?.length) throw new Error("No nodes returned — try again");
+  if (!Array.isArray(g.edges)) g.edges = [];
+
+  g.nodes = g.nodes.map((n, i) => ({
+    id:    String(n.id    || `n${i}`),
+    type:  String(n.type  || "process"),
+    label: String(n.label || "—").slice(0, 30),
+    x:     Math.max(80,  Math.min(720,  Number(n.x) || 400)),
+    y:     Math.max(40,  Math.min(2200, Number(n.y) || 50 + i * 120)),
+  }));
+
+  // Deduplicate nodes
+  const seenN = new Set();
+  g.nodes = g.nodes.filter(n => { if (seenN.has(n.id)) return false; seenN.add(n.id); return true; });
+
+  const ids = new Set(g.nodes.map(n => n.id));
+  g.edges = g.edges
+    .filter(e => e.from && e.to && ids.has(String(e.from)) && ids.has(String(e.to)))
+    .map(e => ({ from: String(e.from), to: String(e.to), label: e.label || "" }));
+
+  // Deduplicate edges
+  const seenE = new Set();
+  g.edges = g.edges.filter(e => { const k=`${e.from}→${e.to}`; if(seenE.has(k)) return false; seenE.add(k); return true; });
+
+  return g;
+}
+
+/* ═══════════════════════════════════════════════════════
+   3-PASS PIPELINE
+═══════════════════════════════════════════════════════ */
+async function runPipeline(code) {
+  const codeSnip = code.length > 20000 ? code.slice(0, 20000) + "\n# ... (truncated)" : code;
+
+  // ── Pass 1 ──
+  setPass(1, "active");
+  const p1Raw = await callGroq(PASS1_SYSTEM, `Analyze this code:\n\n${codeSnip}`, 2000);
+  let structure;
+  try { structure = JSON.parse(extractJSON(p1Raw)); }
+  catch { throw new Error("Pass 1: model returned invalid JSON — click Visualize to retry"); }
+  setPass(1, "done");
+
+  // ── Pass 2 ──
+  setPass(2, "active");
+  const p2Raw = await callGroq(
+    PASS2_SYSTEM,
+    `Build a runtime execution trace.\n\nSTRUCTURE:\n${JSON.stringify(structure, null, 2)}\n\nORIGINAL CODE:\n${codeSnip.slice(0, 5000)}`,
+    2500
+  );
+  let trace;
+  try { trace = JSON.parse(extractJSON(p2Raw, true)); }
+  catch { throw new Error("Pass 2: model returned invalid JSON — click Visualize to retry"); }
+  setPass(2, "done");
+
+  // ── Pass 3 ──
+  setPass(3, "active");
+  const p3Raw = await callGroq(
+    PASS3_SYSTEM,
+    `Convert to flowchart.\n\nLANGUAGE: ${structure.language}\nTITLE: ${structure.title}\n\nEXECUTION TRACE:\n${JSON.stringify(trace, null, 2)}`,
+    3000
+  );
+  let graph;
+  try { graph = JSON.parse(extractJSON(p3Raw)); }
+  catch { throw new Error("Pass 3: model returned invalid JSON — click Visualize to retry"); }
+  setPass(3, "done");
+
+  return validateGraph(graph);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PASS PROGRESS UI
+═══════════════════════════════════════════════════════ */
+function setPass(n, state) {
+  const el  = document.getElementById(`pass${n}`);
+  const dot = document.getElementById(`dot${n}`);
+  el.classList.remove("active", "done");
+  if (state === "active") { el.classList.add("active"); dot.textContent = "◉"; }
+  if (state === "done")   { el.classList.add("done");   dot.textContent = "✓"; }
+  if (state === "reset")  { dot.textContent = String(n); }
+}
+function resetPasses() { [1,2,3].forEach(n => setPass(n, "reset")); }
+function setPassNote(msg) { document.getElementById("pass-note") && (document.querySelector(".pass-note").textContent = msg); }
+
+/* ═══════════════════════════════════════════════════════
+   ANALYZE ENTRY POINT
+═══════════════════════════════════════════════════════ */
+async function analyze() {
+  const code = document.getElementById("code-input").value.trim();
+  if (!code || !apiKey) return;
+
+  const btn = document.getElementById("viz-btn");
+  btn.disabled = true;
+  btn.textContent = "⟳ ANALYZING...";
+  hideError();
+  resetPasses();
+  showLoading();
+
+  try {
+    const graph = await runPipeline(code);
+    renderGraph(graph);
+    showCanvas();
+  } catch(err) {
+    console.error(err);
+    showError(err.message);
+    showEmpty();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "▶ VISUALIZE";
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   UI STATE HELPERS
+═══════════════════════════════════════════════════════ */
+function showEmpty()   {
+  document.getElementById("empty-state").style.display = "flex";
+  document.getElementById("loading-state").classList.remove("show");
+  document.getElementById("canvas-wrap").classList.remove("show");
+}
+function showLoading() {
+  document.getElementById("empty-state").style.display = "none";
+  document.getElementById("loading-state").classList.add("show");
+  document.getElementById("canvas-wrap").classList.remove("show");
+}
+function showCanvas()  {
+  document.getElementById("empty-state").style.display = "none";
+  document.getElementById("loading-state").classList.remove("show");
+  document.getElementById("canvas-wrap").classList.add("show");
+}
+function showError(msg) {
+  const bar = document.getElementById("error-bar");
+  bar.className = "show";
+  let hint = "";
+  if (msg.includes("rate") || msg.includes("Rate")) hint = "<br><small style='color:#7a4444'>Wait 30s then click Visualize again.</small>";
+  if (msg.includes("key") || msg.includes("401"))   hint = "<br><small style='color:#7a4444'>Click 🔑 KEY × to re-enter your Groq key.</small>";
+  if (msg.includes("JSON") || msg.includes("retry")) hint = "<br><small style='color:#7a4444'>AI hiccup — just click Visualize again.</small>";
+  bar.innerHTML = "⚠ " + msg + hint;
+}
+function hideError() { document.getElementById("error-bar").className = ""; }
+
+function onCodeChange() {
+  const code  = document.getElementById("code-input").value;
+  const lines = code.split("\n").length;
+  const chars = code.length;
+  document.getElementById("line-count").textContent =
+    lines + " lines" + (chars > 12000 ? "  ⚡ large" : "");
+  hideError();
+}
+
+function loadExample(key) {
+  document.getElementById("code-input").value = EXAMPLES[key];
+  onCodeChange(); showEmpty(); hideError();
+}
+
+/* ═══════════════════════════════════════════════════════
+   SVG RENDERING
+═══════════════════════════════════════════════════════ */
+const SVG_NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs) {
+  const e = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs||{}).forEach(([k,v]) => e.setAttribute(k, v));
+  return e;
+}
+
+function renderNode(node) {
+  const cfg = BLOCK_CFG[node.type] || BLOCK_CFG.process;
+  const W = node.type==="condition" ? 140 : 155;
+  const H = node.type==="condition" ? 66  : 48;
+  const nx = node.x-W/2, ny = node.y-H/2;
+  const lbl = node.label.length>26 ? node.label.slice(0,24)+"…" : node.label;
+  const g = el("g");
+  const s = cfg.shape;
+
+  // Glow
+  const gw = el("g", { opacity:"0.2" });
+  gw.style.filter = "blur(5px)";
+  if      (s==="oval")    gw.appendChild(el("ellipse",{cx:node.x,cy:node.y,rx:W/2,ry:H/2,fill:cfg.border}));
+  else if (s==="diamond") gw.appendChild(el("polygon",{points:`${node.x},${node.y-H/2} ${node.x+W/2},${node.y} ${node.x},${node.y+H/2} ${node.x-W/2},${node.y}`,fill:cfg.border}));
+  else                    gw.appendChild(el("rect",{x:nx-2,y:ny-2,width:W+4,height:H+4,rx:6,fill:cfg.border}));
+  g.appendChild(gw);
+
+  // Shape
+  if (s==="oval") {
+    g.appendChild(el("ellipse",{cx:node.x,cy:node.y,rx:W/2,ry:H/2,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else if (s==="diamond") {
+    const hw=W/2,hh=H/2;
+    g.appendChild(el("polygon",{points:`${node.x},${node.y-hh} ${node.x+hw},${node.y} ${node.x},${node.y+hh} ${node.x-hw},${node.y}`,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else if (s==="func") {
+    g.appendChild(el("rect",{x:nx,y:ny,width:W,height:H,rx:4,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+    g.appendChild(el("line",{x1:nx+10,y1:ny,x2:nx+10,y2:ny+H,stroke:cfg.border,"stroke-width":"0.8"}));
+    g.appendChild(el("line",{x1:nx+W-10,y1:ny,x2:nx+W-10,y2:ny+H,stroke:cfg.border,"stroke-width":"0.8"}));
+  } else if (s==="para") {
+    const sk=12;
+    g.appendChild(el("polygon",{points:`${nx+sk},${ny} ${nx+W+sk},${ny} ${nx+W},${ny+H} ${nx},${ny+H}`,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else if (s==="hex") {
+    const hw=W/2,hh=H/2,off=14;
+    g.appendChild(el("polygon",{points:`${node.x-hw+off},${node.y-hh} ${node.x+hw-off},${node.y-hh} ${node.x+hw},${node.y} ${node.x+hw-off},${node.y+hh} ${node.x-hw+off},${node.y+hh} ${node.x-hw},${node.y}`,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else {
+    g.appendChild(el("rect",{x:nx,y:ny,width:W,height:H,rx:5,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  }
+
+  const txt = el("text",{x:node.x,y:node.y,"text-anchor":"middle","dominant-baseline":"middle",fill:cfg.fg,"font-size":"11","font-family":"'JetBrains Mono',monospace","font-weight":"600","pointer-events":"none"});
+  txt.textContent = lbl;
+  g.appendChild(txt);
+
+  const badge = el("text",{x:nx,y:ny-7,fill:cfg.border,"font-size":"7","font-family":"monospace","opacity":"0.6","pointer-events":"none"});
+  badge.textContent = node.type.toUpperCase();
+  g.appendChild(badge);
+
+  return g;
+}
+
+function renderEdge(edge, nodes) {
+  const from = nodes.find(n=>n.id===edge.from);
+  const to   = nodes.find(n=>n.id===edge.to);
+  if (!from||!to) return null;
+
+  const FW=from.type==="condition"?140:155, FH=from.type==="condition"?66:48;
+  const TH=to.type==="condition"?66:48;
+  const isBack=to.y<=from.y-20, goesLeft=to.x<from.x-30, goesRight=to.x>from.x+30;
+
+  let x1,y1,x2,y2;
+  if (from.type==="condition") {
+    if      (goesLeft)  {x1=from.x-FW/2;y1=from.y;}
+    else if (goesRight) {x1=from.x+FW/2;y1=from.y;}
+    else                {x1=from.x;y1=from.y+FH/2;}
+  } else {
+    x1=from.x+(goesLeft?-FW/2:goesRight?FW/2:0);
+    y1=from.y+(goesLeft||goesRight?0:FH/2);
+  }
+  if (to.type==="condition"){x2=to.x;y2=to.y-TH/2;}
+  else{x2=to.x+(goesLeft?FW/2:goesRight?-FW/2:0);y2=to.y+(goesLeft||goesRight?0:-TH/2);}
+
+  let d;
+  if (isBack) d=`M ${x1} ${y1} C ${x1+90} ${y1+30} ${x2+90} ${y2-30} ${x2} ${y2}`;
+  else if (goesLeft||goesRight) d=`M ${x1} ${y1} C ${x1+(goesLeft?-30:30)} ${y1} ${x2+(goesLeft?30:-30)} ${y2} ${x2} ${y2}`;
+  else { const cy=(y1+y2)/2; d=`M ${x1} ${y1} C ${x1} ${cy} ${x2} ${cy} ${x2} ${y2}`; }
+
+  const mx=x1*.3+x2*.7, my=y1*.3+y2*.7;
+  const g = el("g");
+  g.appendChild(el("path",{d,fill:"none",stroke:"#1e3a4a","stroke-width":"2","stroke-dasharray":isBack?"5,3":"none","marker-end":"url(#arr)"}));
+  g.appendChild(el("path",{d,fill:"none",stroke:"#2a5a6a","stroke-width":"1",opacity:"0.35"}));
+  if (edge.label) {
+    const t=el("text",{x:mx+6,y:my-5,"font-size":"9",fill:"#4a8a9a","font-family":"'JetBrains Mono',monospace","pointer-events":"none"});
+    t.textContent=edge.label; g.appendChild(t);
+  }
+  return g;
+}
+
+function renderGraph(graph) {
+  const root = document.getElementById("graph-root");
+  root.innerHTML = "";
+  graph.edges.forEach(e => { const el2=renderEdge(e,graph.nodes); if(el2) root.appendChild(el2); });
+  graph.nodes.forEach(n => root.appendChild(renderNode(n)));
+  applyTransform();
+  document.getElementById("info-title").textContent  = graph.title||"—";
+  document.getElementById("info-nodes").textContent  = graph.nodes.length;
+  document.getElementById("info-edges").textContent  = graph.edges.length;
+  document.getElementById("info-lang").textContent   = "[" + (graph.language||"?") + "]";
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAN & ZOOM
+═══════════════════════════════════════════════════════ */
+let tf={x:60,y:40,s:1}, isDrag=false, lastM={x:0,y:0};
+function applyTransform() { document.getElementById("graph-root").setAttribute("transform",`translate(${tf.x},${tf.y}) scale(${tf.s})`); }
+function zoom(d)  { tf.s=Math.max(.2,Math.min(3,tf.s+d)); applyTransform(); }
+function resetView() { tf={x:60,y:40,s:1}; applyTransform(); }
+
+const cw = document.getElementById("canvas-wrap");
+cw.addEventListener("mousedown", e=>{isDrag=true;lastM={x:e.clientX,y:e.clientY};});
+cw.addEventListener("mousemove", e=>{
+  if(!isDrag) return;
+  tf.x+=e.clientX-lastM.x; tf.y+=e.clientY-lastM.y;
+  lastM={x:e.clientX,y:e.clientY}; applyTransform();
+});
+cw.addEventListener("mouseup",    ()=>isDrag=false);
+cw.addEventListener("mouseleave", ()=>isDrag=false);
+cw.addEventListener("wheel", e=>{
+  e.preventDefault();
+  tf.s=Math.max(.2,Math.min(3,tf.s*(1-e.deltaY*.001)));
+  applyTransform();
+}, {passive:false});
+
+/* Ctrl+Enter to visualize */
+document.getElementById("code-input").addEventListener("keydown", e=>{
+  if ((e.ctrlKey||e.metaKey) && e.key==="Enter") analyze();
+});
+
+/* ═══════════════════════════════════════════════════════
+   LEGEND
+═══════════════════════════════════════════════════════ */
+function buildLegend() {
+  const grid = document.getElementById("legend");
+  Object.entries(BLOCK_CFG).forEach(([type,cfg]) => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.style.background = cfg.bg+"28";
+    item.style.border = `1px solid ${cfg.border}33`;
+    const sw = document.createElement("div");
+    sw.className = "legend-swatch";
+    sw.style.cssText = `background:${cfg.bg};border:1px solid ${cfg.border};border-radius:${type==="condition"?"0":"2px"};transform:${type==="condition"?"rotate(45deg)":"none"}`;
+    const lb = document.createElement("span");
+    lb.className = "legend-label";
+    lb.style.color = cfg.fg;
+    lb.textContent = type;
+    item.appendChild(sw); item.appendChild(lb); grid.appendChild(item);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════ */
+buildLegend();
+initKeyModal();
+document.getElementById("code-input").value = EXAMPLES.javascript;
+onCodeChange();
+</script>
+</body>
+</html>
