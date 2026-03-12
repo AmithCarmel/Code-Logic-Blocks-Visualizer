@@ -5,6 +5,11 @@ Runs locally on your machine. Uses "Groq AI" (completely free, no credit card).
 
 <img width="1918" height="862" alt="image" src="https://github.com/user-attachments/assets/427f6f13-c8f1-4832-b84b-41a688e31b4e" />
 
+## Quick view of the app before building:
+1.  https://amithcarmel.github.io/Code-Logic-Blocks-Visualizer/
+2.  Add the gsk_api_key
+3.  Add the code
+4.  click Vizualize
 
 ## Quick Start
 
