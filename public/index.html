@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Logic Blocks</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: #050a0e; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      color: #8aabbc;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Topbar ── */
+    #topbar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 10px 18px;
+      background: #070c11;
+      border-bottom: 1px solid #0d2030;
+      flex-shrink: 0;
+    }
+    .logo { display:flex; align-items:center; gap:8px; }
+    .logo-icon { font-size:18px; }
+    .logo-text { font-size:14px; font-weight:700; color:#00ff88; letter-spacing:1px; }
+    .logo-badge {
+      font-size:9px; color:#1e5a3a; background:#0a1f15;
+      padding:2px 7px; border-radius:4px; border:1px solid #0d3020;
+    }
+    .spacer { flex:1; }
+    .ex-label { font-size:10px; color:#2a4a5a; }
+    .ex-btn {
+      font-size:10px; padding:4px 10px; background:#0a1520;
+      border:1px solid #1a3040; border-radius:5px; color:#4a8a9a;
+      cursor:pointer; font-family:inherit; letter-spacing:.5px;
+      transition: all .15s;
+    }
+    .ex-btn:hover { background:#0d1e30; color:#7dd3fc; }
+    #status-dot {
+      width:8px; height:8px; border-radius:50%;
+      background:#1a4a2a; border:1px solid #0a2a1a;
+      transition: background .3s;
+    }
+    #status-dot.ok  { background:#00ff88; box-shadow:0 0 8px #00ff8866; }
+    #status-dot.err { background:#ff4466; box-shadow:0 0 8px #ff446666; }
+    #viz-btn {
+      padding:8px 22px; background:#00ff88; color:#021a09;
+      border:none; border-radius:7px; font-weight:700;
+      font-size:12px; letter-spacing:1px; font-family:inherit;
+      cursor:pointer; transition:all .2s;
+      box-shadow: 0 0 22px #00ff8845;
+    }
+    #viz-btn:hover:not(:disabled) { box-shadow:0 0 30px #00ff8870; }
+    #viz-btn:disabled { background:#0a2015; color:#0a5a2a; cursor:not-allowed; box-shadow:none; }
+
+    /* ── Main split ── */
+    #main { flex:1; display:flex; overflow:hidden; }
+
+    /* ── Left editor panel ── */
+    #editor-panel {
+      width: 380px; flex-shrink:0;
+      display:flex; flex-direction:column;
+      border-right:1px solid #0d2030;
+    }
+    #editor-header {
+      padding:7px 14px; font-size:10px; color:#2a5a6a;
+      background:#060b10; border-bottom:1px solid #0d2030;
+      display:flex; gap:10px; align-items:center;
+    }
+    #line-count { margin-left:auto; color:#1a4a3a; font-size:9px; }
+    #code-input {
+      flex:1; background:#060b10; color:#7dd3fc;
+      border:none; outline:none; padding:14px;
+      font-size:12px; line-height:1.75; resize:none;
+      font-family:inherit; caret-color:#00ff88;
+      overflow-y:auto;
+    }
+    #code-input::placeholder { color:#1a3a4a; }
+    #error-bar {
+      display:none; padding:10px 14px;
+      background:#180808; border-top:1px solid #4a1010;
+      font-size:11px; color:#fca5a5; line-height:1.7;
+    }
+    #error-bar.show { display:block; }
+
+    /* ── Right graph panel ── */
+    #graph-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+
+    /* Empty state */
+    #empty-state {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:#070b0f; gap:22px; padding:40px;
+    }
+    .empty-icon { font-size:46px; opacity:.18; }
+    .empty-msg { color:#1e4a5a; font-size:13px; text-align:center; line-height:2.2; }
+    .empty-msg span { color:#00ff88; }
+    .legend-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-width:360px; width:100%; }
+    .legend-item {
+      display:flex; align-items:center; gap:8px;
+      padding:6px 12px; border-radius:6px;
+    }
+    .legend-swatch { width:10px; height:10px; flex-shrink:0; }
+    .legend-label  { font-size:10px; opacity:.75; }
+    .empty-tip { font-size:10px; color:#1a3a4a; text-align:center; line-height:2; }
+
+    /* Loading state */
+    #loading-state {
+      display:none; flex:1; flex-direction:column;
+      align-items:center; justify-content:center;
+      background:#070b0f; gap:18px;
+    }
+    #loading-state.show { display:flex; }
+    .spin { font-size:38px; animation: spin 1.4s linear infinite; }
+    .load-title { color:#00ff88; font-size:13px; letter-spacing:2px; }
+    .load-step  { font-size:10px; color:#1a4a3a; opacity:0; animation: fadeIn .4s forwards; }
+
+    /* SVG canvas */
+    #canvas-wrap {
+      display:none; flex:1; position:relative; overflow:hidden;
+      background:#070b0f;
+      background-image: radial-gradient(circle, #162030 1px, transparent 1px);
+      background-size: 24px 24px;
+      cursor:grab;
+    }
+    #canvas-wrap.show { display:block; }
+    #canvas-wrap:active { cursor:grabbing; }
+    svg#flow { width:100%; height:100%; }
+
+    /* SVG controls */
+    #zoom-controls {
+      position:absolute; bottom:16px; right:16px;
+      display:flex; flex-direction:column; gap:6px;
+    }
+    .zoom-btn {
+      width:34px; height:34px; background:#0d1620;
+      border:1px solid #1e3a4a; border-radius:8px;
+      color:#7dd3fc; font-size:16px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      font-family:inherit;
+    }
+    #info-pill {
+      position:absolute; top:12px; left:12px;
+      background:rgba(13,22,32,.88); border:1px solid #1e3a4a;
+      border-radius:8px; padding:6px 12px;
+      font-size:11px; color:#4a8a9a;
+    }
+    #info-pill span { margin-left:12px; color:#00ff88; }
+
+    @keyframes spin   { to { transform:rotate(360deg); } }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:#060b10; }
+    ::-webkit-scrollbar-thumb { background:#1a3a4a; border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Topbar ── -->
+<div id="topbar">
+  <div class="logo">
+    <span class="logo-icon">⬡</span>
+    <span class="logo-text">LOGIC BLOCKS</span>
+    <span class="logo-badge">FREE · LOCAL</span>
+  </div>
+  <div class="spacer"></div>
+  <span class="ex-label">EXAMPLES:</span>
+  <button class="ex-btn" onclick="loadExample('python')">python</button>
+  <button class="ex-btn" onclick="loadExample('javascript')">javascript</button>
+  <button class="ex-btn" onclick="loadExample('mixed')">mixed</button>
+  <div id="status-dot" title="Server status"></div>
+  <button id="viz-btn" onclick="analyze()">▶ VISUALIZE</button>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+
+  <!-- Left: editor -->
+  <div id="editor-panel">
+    <div id="editor-header">
+      <span>PASTE CODE</span>
+      <span style="color:#1a3a4a">·</span>
+      <span id="lang-label" style="color:#2a6a3a">auto-detect</span>
+      <span id="line-count">0 lines</span>
+    </div>
+    <textarea id="code-input"
+      placeholder="// Paste any code here&#10;// Python, JS, TS, Go, Rust, Java, C#, C++, PHP...&#10;// Then click ▶ VISUALIZE"
+      oninput="onCodeChange()"></textarea>
+    <div id="error-bar"></div>
+  </div>
+
+  <!-- Right: graph -->
+  <div id="graph-panel">
+
+    <!-- Empty state -->
+    <div id="empty-state">
+      <div class="empty-icon">⬡</div>
+      <div class="empty-msg">
+        Paste any code in the editor<br/>
+        <span>Click ▶ VISUALIZE</span> to generate logic blocks
+      </div>
+      <div class="legend-grid" id="legend"></div>
+      <div class="empty-tip">
+        Scroll to zoom · Drag to pan<br/>
+        Python · JS · TS · Go · Rust · C++ · Java · C# · PHP · Ruby…
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="loading-state">
+      <div class="spin">⬡</div>
+      <div class="load-title">PARSING LOGIC STRUCTURE...</div>
+      <div class="load-step" style="animation-delay:.0s">Sending code to AI model...</div>
+      <div class="load-step" style="animation-delay:.3s">Identifying control flow...</div>
+      <div class="load-step" style="animation-delay:.6s">Building block graph...</div>
+      <div class="load-step" style="animation-delay:.9s">Laying out diagram...</div>
+    </div>
+
+    <!-- SVG canvas -->
+    <div id="canvas-wrap">
+      <svg id="flow">
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
+            <polygon points="0 0,8 3.5,0 7" fill="#2a6a7a"/>
+          </marker>
+        </defs>
+        <g id="graph-root"></g>
+      </svg>
+      <div id="zoom-controls">
+        <button class="zoom-btn" onclick="zoom(0.2)">＋</button>
+        <button class="zoom-btn" onclick="zoom(-0.2)">－</button>
+        <button class="zoom-btn" onclick="resetView()">⟳</button>
+      </div>
+      <div id="info-pill">
+        <span id="info-title">—</span> ·
+        <span id="info-nodes">0</span> blocks ·
+        <span id="info-edges">0</span> edges
+        <span id="info-lang">—</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ─── Config ─────────────────────────────────────────────── */
+const BLOCK_CFG = {
+  start:     { bg:"#00ff88", fg:"#051a0e", border:"#00ff88", shape:"oval"    },
+  end:       { bg:"#ff4466", fg:"#ffffff", border:"#ff4466", shape:"oval"    },
+  process:   { bg:"#0d1f2d", fg:"#7dd3fc", border:"#1e4a6e", shape:"rect"    },
+  condition: { bg:"#1a0d2e", fg:"#c084fc", border:"#6b21a8", shape:"diamond" },
+  loop:      { bg:"#1a1a0d", fg:"#fde68a", border:"#78680a", shape:"hex"     },
+  function:  { bg:"#0d1a0d", fg:"#86efac", border:"#166534", shape:"func"    },
+  return:    { bg:"#1a0d0d", fg:"#fca5a5", border:"#7f1d1d", shape:"rect"    },
+  input:     { bg:"#0d0d1a", fg:"#a5b4fc", border:"#3730a3", shape:"para"    },
+};
+
+const EXAMPLES = {
+  python: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr`,
+  javascript: `async function fetchUser(id) {
+  try {
+    const res = await fetch(\`/api/users/\${id}\`);
+    if (!res.ok) throw new Error("Not found");
+    const user = await res.json();
+    if (!user.active) return null;
+    return user;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}`,
+  mixed: `function processOrder(order) {
+  if (!order || !order.items.length) return { error: "Empty order" };
+  let total = 0;
+  for (const item of order.items) {
+    if (item.qty <= 0) continue;
+    total += item.price * item.qty;
+  }
+  if (total > 1000) total *= 0.9;
+  const tax = total * 0.08;
+  return { total: total + tax, items: order.items.length };
+}`
+};
+
+/* ─── State ──────────────────────────────────────────────── */
+let tf = { x:60, y:40, s:1 };  // pan/zoom transform
+let isDragging = false, lastMouse = {x:0, y:0};
+let currentGraph = null;
+
+/* ─── Legend ─────────────────────────────────────────────── */
+function buildLegend() {
+  const grid = document.getElementById("legend");
+  Object.entries(BLOCK_CFG).forEach(([type, cfg]) => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.style.background = cfg.bg + "28";
+    item.style.border = `1px solid ${cfg.border}33`;
+
+    const sw = document.createElement("div");
+    sw.className = "legend-swatch";
+    sw.style.background = cfg.bg;
+    sw.style.border = `1px solid ${cfg.border}`;
+    sw.style.borderRadius = type === "condition" ? "0" : "2px";
+    sw.style.transform = type === "condition" ? "rotate(45deg)" : "none";
+
+    const lb = document.createElement("span");
+    lb.className = "legend-label";
+    lb.style.color = cfg.fg;
+    lb.textContent = type;
+
+    item.appendChild(sw);
+    item.appendChild(lb);
+    grid.appendChild(item);
+  });
+}
+buildLegend();
+
+/* ─── Code input ─────────────────────────────────────────── */
+function onCodeChange() {
+  const code = document.getElementById("code-input").value;
+  document.getElementById("line-count").textContent = code.split("\n").length + " lines";
+  hideError();
+}
+
+function loadExample(key) {
+  document.getElementById("code-input").value = EXAMPLES[key];
+  onCodeChange();
+  showEmpty();
+}
+
+/* ─── Server health check ────────────────────────────────── */
+async function checkHealth() {
+  try {
+    const r = await fetch("/api/health");
+    const d = await r.json();
+    const dot = document.getElementById("status-dot");
+    if (d.status === "ok" && d.keySet) {
+      dot.className = "ok";
+      dot.title = "Server running · API key set";
+    } else {
+      dot.className = "err";
+      dot.title = "Server running but GROQ_API_KEY missing";
+    }
+  } catch {
+    document.getElementById("status-dot").className = "err";
+    document.getElementById("status-dot").title = "Cannot reach server";
+  }
+}
+checkHealth();
+
+/* ─── Analyze ────────────────────────────────────────────── */
+async function analyze() {
+  const code = document.getElementById("code-input").value.trim();
+  if (!code) return;
+
+  const btn = document.getElementById("viz-btn");
+  btn.disabled = true;
+  btn.textContent = "⟳ ANALYZING...";
+  hideError();
+  showLoading();
+
+  try {
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+
+    currentGraph = data;
+    renderGraph(data);
+    showCanvas();
+
+  } catch (err) {
+    console.error(err);
+    showError(err.message);
+    showEmpty();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "▶ VISUALIZE";
+  }
+}
+
+/* ─── UI state helpers ───────────────────────────────────── */
+function showEmpty()   { document.getElementById("empty-state").style.display   = "flex";  document.getElementById("loading-state").classList.remove("show"); document.getElementById("canvas-wrap").classList.remove("show"); }
+function showLoading() { document.getElementById("empty-state").style.display   = "none";  document.getElementById("loading-state").classList.add("show");    document.getElementById("canvas-wrap").classList.remove("show"); }
+function showCanvas()  { document.getElementById("empty-state").style.display   = "none";  document.getElementById("loading-state").classList.remove("show"); document.getElementById("canvas-wrap").classList.add("show"); }
+function showError(msg) {
+  const bar = document.getElementById("error-bar");
+  bar.className = "show";
+  let hint = "";
+  if (msg.includes("Rate")) hint = "<br><small style='color:#7a4444'>Wait 30s then try again.</small>";
+  if (msg.includes("GROQ_API_KEY")) hint = "<br><small style='color:#7a4444'>Add your key to the .env file and restart the server.</small>";
+  if (msg.includes("JSON") || msg.includes("nodes")) hint = "<br><small style='color:#7a4444'>Try a shorter snippet — one function at a time works best.</small>";
+  bar.innerHTML = "⚠ " + msg + hint;
+}
+function hideError() {
+  document.getElementById("error-bar").className = "";
+}
+
+/* ─── SVG Rendering ──────────────────────────────────────── */
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs || {}).forEach(([k,v]) => el.setAttribute(k, v));
+  return el;
+}
+
+function renderNode(node) {
+  const cfg = BLOCK_CFG[node.type] || BLOCK_CFG.process;
+  const W   = node.type === "condition" ? 140 : 155;
+  const H   = node.type === "condition" ? 66  : 48;
+  const nx  = node.x - W/2, ny = node.y - H/2;
+  const lbl = node.label.length > 26 ? node.label.slice(0,24)+"…" : node.label;
+  const g   = svgEl("g");
+
+  // Glow
+  const glow = svgEl("g", { opacity:"0.2" });
+  glow.style.filter = "blur(5px)";
+  const s = cfg.shape;
+  if (s==="oval") {
+    glow.appendChild(svgEl("ellipse",{cx:node.x,cy:node.y,rx:W/2,ry:H/2,fill:cfg.border}));
+  } else if (s==="diamond") {
+    glow.appendChild(svgEl("polygon",{points:`${node.x},${node.y-H/2} ${node.x+W/2},${node.y} ${node.x},${node.y+H/2} ${node.x-W/2},${node.y}`,fill:cfg.border}));
+  } else {
+    glow.appendChild(svgEl("rect",{x:nx-2,y:ny-2,width:W+4,height:H+4,rx:6,fill:cfg.border}));
+  }
+  g.appendChild(glow);
+
+  // Shape
+  if (s==="oval") {
+    g.appendChild(svgEl("ellipse",{cx:node.x,cy:node.y,rx:W/2,ry:H/2,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else if (s==="diamond") {
+    const hw=W/2,hh=H/2;
+    g.appendChild(svgEl("polygon",{points:`${node.x},${node.y-hh} ${node.x+hw},${node.y} ${node.x},${node.y+hh} ${node.x-hw},${node.y}`,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else if (s==="func") {
+    g.appendChild(svgEl("rect",{x:nx,y:ny,width:W,height:H,rx:4,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+    g.appendChild(svgEl("line",{x1:nx+10,y1:ny,x2:nx+10,y2:ny+H,stroke:cfg.border,"stroke-width":"0.8"}));
+    g.appendChild(svgEl("line",{x1:nx+W-10,y1:ny,x2:nx+W-10,y2:ny+H,stroke:cfg.border,"stroke-width":"0.8"}));
+  } else if (s==="para") {
+    const sk=12;
+    g.appendChild(svgEl("polygon",{points:`${nx+sk},${ny} ${nx+W+sk},${ny} ${nx+W},${ny+H} ${nx},${ny+H}`,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else if (s==="hex") {
+    const hw=W/2,hh=H/2,off=14;
+    g.appendChild(svgEl("polygon",{points:`${node.x-hw+off},${node.y-hh} ${node.x+hw-off},${node.y-hh} ${node.x+hw},${node.y} ${node.x+hw-off},${node.y+hh} ${node.x-hw+off},${node.y+hh} ${node.x-hw},${node.y}`,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  } else {
+    g.appendChild(svgEl("rect",{x:nx,y:ny,width:W,height:H,rx:5,fill:cfg.bg,stroke:cfg.border,"stroke-width":"1.5"}));
+  }
+
+  // Label
+  const txt = svgEl("text",{x:node.x,y:node.y,"text-anchor":"middle","dominant-baseline":"middle",fill:cfg.fg,"font-size":"11","font-family":"'JetBrains Mono',monospace","font-weight":"600","pointer-events":"none","user-select":"none"});
+  txt.textContent = lbl;
+  g.appendChild(txt);
+
+  // Type badge
+  const badge = svgEl("text",{x:nx,y:ny-7,fill:cfg.border,"font-size":"7","font-family":"monospace","opacity":"0.6","pointer-events":"none","user-select":"none"});
+  badge.textContent = node.type.toUpperCase();
+  g.appendChild(badge);
+
+  return g;
+}
+
+function renderEdge(edge, nodes) {
+  const from = nodes.find(n=>n.id===edge.from);
+  const to   = nodes.find(n=>n.id===edge.to);
+  if (!from||!to) return null;
+
+  const FW=from.type==="condition"?140:155, FH=from.type==="condition"?66:48;
+  const TH=to.type==="condition"?66:48;
+  const isBack=to.y<=from.y-20, goesLeft=to.x<from.x-30, goesRight=to.x>from.x+30;
+
+  let x1,y1,x2,y2;
+  if (from.type==="condition") {
+    if (goesLeft)      {x1=from.x-FW/2;y1=from.y;}
+    else if(goesRight) {x1=from.x+FW/2;y1=from.y;}
+    else               {x1=from.x;y1=from.y+FH/2;}
+  } else {
+    x1=from.x+(goesLeft?-FW/2:goesRight?FW/2:0);
+    y1=from.y+(goesLeft||goesRight?0:FH/2);
+  }
+  if (to.type==="condition"){x2=to.x;y2=to.y-TH/2;}
+  else{x2=to.x+(goesLeft?FW/2:goesRight?-FW/2:0);y2=to.y+(goesLeft||goesRight?0:-TH/2);}
+
+  let d;
+  if (isBack) {
+    d=`M ${x1} ${y1} C ${x1+90} ${y1+30} ${x2+90} ${y2-30} ${x2} ${y2}`;
+  } else if (goesLeft||goesRight) {
+    d=`M ${x1} ${y1} C ${x1+(goesLeft?-30:30)} ${y1} ${x2+(goesLeft?30:-30)} ${y2} ${x2} ${y2}`;
+  } else {
+    const cy=(y1+y2)/2;
+    d=`M ${x1} ${y1} C ${x1} ${cy} ${x2} ${cy} ${x2} ${y2}`;
+  }
+
+  const mx=x1*.3+x2*.7, my=y1*.3+y2*.7;
+  const g = svgEl("g");
+  g.appendChild(svgEl("path",{d,fill:"none",stroke:"#1e3a4a","stroke-width":"2","stroke-dasharray":isBack?"5,3":"none","marker-end":"url(#arr)"}));
+  g.appendChild(svgEl("path",{d,fill:"none",stroke:"#2a5a6a","stroke-width":"1",opacity:"0.35"}));
+  if (edge.label) {
+    const t = svgEl("text",{x:mx+6,y:my-5,"font-size":"9",fill:"#4a8a9a","font-family":"'JetBrains Mono',monospace","pointer-events":"none"});
+    t.textContent = edge.label;
+    g.appendChild(t);
+  }
+  return g;
+}
+
+function renderGraph(graph) {
+  const root = document.getElementById("graph-root");
+  root.innerHTML = "";
+  applyTransform();
+
+  // edges first (behind nodes)
+  graph.edges.forEach(e => {
+    const el = renderEdge(e, graph.nodes);
+    if (el) root.appendChild(el);
+  });
+  graph.nodes.forEach(n => root.appendChild(renderNode(n)));
+
+  document.getElementById("info-title").textContent = graph.title || "—";
+  document.getElementById("info-nodes").textContent = graph.nodes.length;
+  document.getElementById("info-edges").textContent = graph.edges.length;
+  document.getElementById("info-lang").textContent  = "[" + (graph.language||"?") + "]";
+}
+
+/* ─── Pan & zoom ─────────────────────────────────────────── */
+function applyTransform() {
+  document.getElementById("graph-root").setAttribute("transform",`translate(${tf.x},${tf.y}) scale(${tf.s})`);
+}
+
+function zoom(delta) {
+  tf.s = Math.max(0.2, Math.min(3, tf.s + delta));
+  applyTransform();
+}
+
+function resetView() {
+  tf = {x:60, y:40, s:1};
+  applyTransform();
+}
+
+const canvas = document.getElementById("canvas-wrap");
+canvas.addEventListener("mousedown", e => { isDragging=true; lastMouse={x:e.clientX,y:e.clientY}; });
+canvas.addEventListener("mousemove", e => {
+  if (!isDragging) return;
+  tf.x += e.clientX - lastMouse.x;
+  tf.y += e.clientY - lastMouse.y;
+  lastMouse = {x:e.clientX, y:e.clientY};
+  applyTransform();
+});
+canvas.addEventListener("mouseup",    ()=>isDragging=false);
+canvas.addEventListener("mouseleave", ()=>isDragging=false);
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  tf.s = Math.max(0.2, Math.min(3, tf.s*(1-e.deltaY*.001)));
+  applyTransform();
+}, { passive:false });
+
+// Keyboard shortcut: Ctrl+Enter to visualize
+document.getElementById("code-input").addEventListener("keydown", e => {
+  if ((e.ctrlKey||e.metaKey) && e.key==="Enter") analyze();
+});
+
+// Init line count
+document.getElementById("code-input").value = EXAMPLES.javascript;
+onCodeChange();
+</script>
+</body>
+</html>
