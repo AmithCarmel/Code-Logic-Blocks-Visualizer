@@ -3,6 +3,9 @@
 AI-powered code logic visualizer. Paste any code → get an interactive flowchart.
 Runs locally on your machine. Uses "Groq AI" (completely free, no credit card).
 
+<img width="1918" height="862" alt="image" src="https://github.com/user-attachments/assets/427f6f13-c8f1-4832-b84b-41a688e31b4e" />
+
+
 ## Quick Start
 
 ### 1. Install Node.js
