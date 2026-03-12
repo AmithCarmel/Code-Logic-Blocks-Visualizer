@@ -216,6 +216,7 @@
         <button class="zoom-btn" onclick="zoom(0.2)">＋</button>
         <button class="zoom-btn" onclick="zoom(-0.2)">－</button>
         <button class="zoom-btn" onclick="resetView()">⟳</button>
+        <button class="zoom-btn" onclick="downloadSVG()" title="Download SVG">⬇</button>
       </div>
       <div id="info-pill">
         <span id="info-title">—</span> ·
@@ -700,6 +701,18 @@ let tf={x:60,y:40,s:1}, isDrag=false, lastM={x:0,y:0};
 function applyTransform() { document.getElementById("graph-root").setAttribute("transform",`translate(${tf.x},${tf.y}) scale(${tf.s})`); }
 function zoom(d)  { tf.s=Math.max(.2,Math.min(3,tf.s+d)); applyTransform(); }
 function resetView() { tf={x:60,y:40,s:1}; applyTransform(); }
+function downloadSVG() {
+  const svg = document.getElementById("flow");
+  const data = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([data], { type: "image/svg+xml" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  const title = document.getElementById("info-title").textContent || "flowchart";
+  a.href     = url;
+  a.download = title.replace(/\s+/g, "-").toLowerCase() + ".svg";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const cw = document.getElementById("canvas-wrap");
 cw.addEventListener("mousedown", e=>{isDrag=true;lastM={x:e.clientX,y:e.clientY};});
