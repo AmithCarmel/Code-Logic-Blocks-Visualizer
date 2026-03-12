@@ -1,11 +1,9 @@
-# 🧠 Logic Blocks — Local Web App
+# Logic Blocks — Local Web App
 
 AI-powered code logic visualizer. Paste any code → get an interactive flowchart.
-Runs locally on your machine. Uses **Groq AI** (completely free, no credit card).
+Runs locally on your machine. Uses "Groq AI" (completely free, no credit card).
 
----
-
-## ⚡ Quick Start (5 minutes)
+## Quick Start
 
 ### 1. Install Node.js
 Download from https://nodejs.org (LTS version)
@@ -13,8 +11,8 @@ Download from https://nodejs.org (LTS version)
 ### 2. Get your FREE Groq API key
 1. Go to https://console.groq.com
 2. Sign up (free, no credit card)
-3. Click **API Keys** → **Create API Key**
-4. Copy the key (starts with `gsk_...`)
+3. Click "API Keys" → "Create API Key"
+4. Copy the key (starts with "gsk_...")
 
 ### 3. Set up the project
 ```bash
@@ -34,18 +32,18 @@ copy .env.example .env        # Windows
 npm start
 ```
 
-Open http://localhost:3000 in your browser. Done! 🎉
+Open http://localhost:3000 in your browser. Done! 
 
 ---
 
-## 🔄 Dev mode (auto-restarts on file changes)
+##  Dev mode (auto-restarts on file changes)
 ```bash
 npm run dev
 ```
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 ```
 logic-blocks-app/
 ├── server.js          ← Express server + Groq API call
@@ -59,7 +57,7 @@ logic-blocks-app/
 
 ---
 
-## 🛠 How it works
+## How it works
 1. You paste code into the editor
 2. Frontend sends it to `POST /api/analyze` on the local server
 3. Server calls Groq (Llama 3.3 70B) with a prompt to return JSON flowchart data
@@ -67,7 +65,7 @@ logic-blocks-app/
 
 ---
 
-## 🔧 Customization ideas
+## Customization ideas
 - **Change AI model**: Edit `model` in `server.js` — try `"mixtral-8x7b-32768"` for longer code
 - **Add syntax highlighting**: Drop in CodeMirror or Monaco editor
 - **Export to PNG**: Add html2canvas
@@ -75,7 +73,7 @@ logic-blocks-app/
 
 ---
 
-## 🆓 Groq Free Tier Limits
+## Groq Free Tier Limits
 - 30 requests/minute
 - 14,400 requests/day
 - More than enough for personal use!
